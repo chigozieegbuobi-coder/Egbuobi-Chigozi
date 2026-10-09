@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anime Arena</title>
+<style>
+  :root {
+    --p1: #3b82f6;
+    --p2: #ef4444;
+    --bg: #14161d;
+    --panel: #1f232e;
+    --panel2: #272c3a;
+    --text: #eef0f5;
+    --muted: #9aa3b5;
+    --cell: calc(min(96vw, 760px) / 11);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  #app { max-width: 1240px; margin: 0 auto; padding: 16px; }
+  h1 { margin: 6px 0 0; text-align: center; font-size: 2rem; letter-spacing: 2px; }
+  .sub { text-align: center; color: var(--muted); margin: 4px 0 18px; }
+  button {
+    font: inherit;
+    border: 0;
+    border-radius: 8px;
+    padding: 9px 16px;
+    background: #4a7cff;
+    color: #fff;
+    cursor: pointer;
+  }
+  button:hover:not(:disabled) { filter: brightness(1.12); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.ghost { background: var(--panel2); }
+  button.big { font-size: 1.2rem; padding: 14px 40px; background: #16a34a; }
+  [hidden] { display: none !important; }
+
+  /* ---------- Shuffle page ---------- */
+  #hands { display: flex; flex-wrap: wrap; gap: 28px; justify-content: center; }
+  .hand { text-align: center; }
+  .hand h2 { margin: 0 0 10px; }
+  .hand h2.p1 { color: var(--p1); }
+  .hand h2.p2 { color: var(--p2); }
+  .cards { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .card {
+    width: 210px;
+    background: var(--panel);
+    border-radius: 12px;
+    padding: 12px;
+    text-align: left;
+    border-top: 5px solid var(--pc, #666);
+  }
+  .card h3 { margin: 8px 0 0; font-size: 1.15rem; }
+  .card .series { color: var(--muted); font-size: .8rem; margin-bottom: 8px; }
+  .card .ph { width: 84px; height: 84px; margin: 0 auto; }
+  .card .ph .portrait { width: 100%; height: 100%; border-radius: 12px; font-size: 2.6rem; }
+  .stats { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: .78rem; color: var(--muted); margin-bottom: 8px; }
+  .stats b { color: var(--text); }
+  .skl { list-style: none; margin: 0; padding: 0; font-size: .78rem; }
+  .skl li { padding: 3px 0; border-top: 1px solid #ffffff14; }
+  .skl i { display: block; color: var(--muted); font-style: normal; }
+  .deal { animation: deal .5s ease-out both; }
+  @keyframes deal {
+    from { transform: translateY(-30px) rotateY(90deg) scale(.8); opacity: 0; }
+    to   { transform: none; opacity: 1; }
+  }
+  #start-wrap { text-align: center; margin: 22px 0 10px; }
+  details { max-width: 760px; margin: 18px auto; background: var(--panel); border-radius: 10px; padding: 10px 16px; font-size: .92rem; line-height: 1.5; }
+  details summary { cursor: pointer; font-weight: 600; }
+  details li { margin: 3px 0; }
+  .note { text-align: center; color: var(--muted); font-size: .82rem; }
+
+  /* ---------- Portraits ---------- */
+  .portrait {
+    background: var(--pc, #444);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    color: #fff;
+    overflow: hidden;
+  }
+  .portrait img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  /* ---------- Battle ---------- */
+  #turnbar {
+    text-align: center;
+    font-size: 1.15rem;
+    font-weight: 700;
+    padding: 8px;
+    border-radius: 8px;
+    background: var(--panel);
+    margin-bottom: 10px;
+  }
+  #turnbar.t1 { border-bottom: 4px solid var(--p1); }
+  #turnbar.t2 { border-bottom: 4px solid var(--p2); }
+  #turnbar.t0 { border-bottom: 4px solid #f59e0b; }
+  #battle-main {
+    display: grid;
+    grid-template-columns: 200px auto 200px;
+    gap: 12px;
+    justify-content: center;
+    align-items: start;
+  }
+  .team h4 { margin: 0 0 6px; text-align: center; }
+  .team.t1 h4 { color: var(--p1); }
+  .team.t2 h4 { color: var(--p2); }
+  .team.active h4::after { content: " ◀ turn"; font-size: .75rem; color: #fbbf24; }
+  .ucard {
+    display: grid;
+    grid-template-columns: 40px 1fr;
+    gap: 8px;
+    background: var(--panel);
+    border-radius: 8px;
+    padding: 6px;
+    margin-bottom: 6px;
+    font-size: .78rem;
+    border-left: 4px solid var(--tc);
+    cursor: pointer;
+  }
+  .ucard.sel { outline: 2px solid #fbbf24; }
+  .ucard.dead { opacity: .35; filter: grayscale(1); cursor: default; }
+  .ucard .portrait { width: 40px; height: 40px; border-radius: 8px; font-size: 1.2rem; }
+  .ucard b { font-size: .88rem; }
+  .bar { height: 7px; background: #0008; border-radius: 4px; overflow: hidden; margin-top: 3px; }
+  .bar i { display: block; height: 100%; }
+  .bar.hp i { background: #4ade80; }
+  .bar.ep i { background: #60a5fa; }
+  .nums { color: var(--muted); font-size: .7rem; display: flex; justify-content: space-between; }
+  .chips { font-size: .72rem; min-height: 1em; }
+
+  #centre { display: flex; flex-direction: column; align-items: center; }
+  #board {
+    display: grid;
+    grid-template-columns: repeat(11, var(--cell));
+    grid-auto-rows: var(--cell);
+    border: 6px solid #2b2f3d;
+    border-radius: 8px;
+    width: max-content;
+    box-shadow: 0 10px 30px rgba(0,0,0,.5);
+  }
+  .cell {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: calc(var(--cell) * .5);
+    cursor: pointer;
+    user-select: none;
+  }
+  .cell.plain.a { background: #3f4d3a; }
+  .cell.plain.b { background: #37432f; }
+  .cell.wall   { background: repeating-linear-gradient(45deg, #5b6170, #5b6170 6px, #4b505d 6px, #4b505d 12px); }
+  .cell.water  { background: linear-gradient(#2563eb, #1d4ed8); }
+  .cell.forest { background: #1f5a2e; }
+  .cell.spikes { background: #5a2d2d; }
+  .glyph { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; opacity: .75; font-size: calc(var(--cell) * .45); pointer-events: none; }
+  .cell.spikes .glyph { color: #fca5a5; font-size: calc(var(--cell) * .35); }
+  .cell.water .glyph { color: #bfdbfe; }
+  .cell.reach::after, .cell.target::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+  .cell.reach::after  { background: rgba(59,130,246,.38); box-shadow: inset 0 0 0 2px rgba(96,165,250,.95); }
+  .cell.target::after { background: rgba(239,68,68,.40); box-shadow: inset 0 0 0 3px #f87171; animation: pulse 1s infinite; }
+  .cell.sel { box-shadow: inset 0 0 0 3px #fbbf24; }
+  @keyframes pulse { 50% { opacity: .55; } }
+  .pickup { position: absolute; bottom: 1px; right: 2px; font-size: calc(var(--cell) * .32); pointer-events: none; }
+
+  .token {
+    position: relative;
+    width: 80%;
+    height: 80%;
+    border-radius: 50%;
+    border: 3px solid var(--tc);
+    background: #222;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+  }
+  .token .portrait { width: 100%; height: 100%; border-radius: 50%; font-size: calc(var(--cell) * .38); }
+  .token.mon { background: #2a2118; font-size: calc(var(--cell) * .5); }
+  .token.stunned { filter: grayscale(.8); }
+  .token .hpb {
+    position: absolute;
+    left: 6%; right: 6%; bottom: -5px;
+    height: 5px;
+    background: #000b;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .token .hpb i { display: block; height: 100%; background: #4ade80; }
+  .token .badges { position: absolute; top: -7px; right: -7px; font-size: calc(var(--cell) * .27); line-height: 1; white-space: nowrap; }
+  .pop {
+    position: absolute;
+    z-index: 5;
+    left: 0; right: 0; top: 10%;
+    text-align: center;
+    font-weight: 900;
+    font-size: calc(var(--cell) * .38);
+    text-shadow: 0 0 4px #000, 0 0 4px #000;
+    pointer-events: none;
+    animation: floatUp 1s ease-out forwards;
+  }
+  .pop.dmg { color: #fca5a5; }
+  .pop.heal { color: #86efac; }
+  .pop.info { color: #fde68a; }
+  @keyframes floatUp { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-30px); opacity: 0; } }
+
+  #actions {
+    width: 100%;
+    margin-top: 12px;
+    background: var(--panel);
+    border-radius: 10px;
+    padding: 10px;
+    min-height: 90px;
+  }
+  #actions .head { font-weight: 700; margin-bottom: 4px; }
+  #actions .hint { color: var(--muted); font-size: .88rem; margin-bottom: 8px; }
+  #actions .warn { color: #fca5a5; font-size: .88rem; margin-bottom: 6px; }
+  .abtns { display: flex; flex-wrap: wrap; gap: 8px; }
+  .abtn { background: var(--panel2); min-width: 118px; text-align: left; padding: 7px 10px; }
+  .abtn small { display: block; color: var(--muted); font-size: .7rem; margin-top: 2px; }
+  .abtn.ult { background: #5b2a86; }
+  .abtn.ult small { color: #d8b4fe; }
+  .abtn.cancel { background: #7f1d1d; }
+  .abtn.end { background: #374151; }
+  #log {
+    width: 100%;
+    margin-top: 10px;
+    background: #0d0f14;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: .8rem;
+    color: #c4cad8;
+    max-height: 140px;
+    overflow-y: auto;
+    line-height: 1.45;
+  }
+  #legend { margin-top: 8px; font-size: .74rem; color: var(--muted); text-align: center; }
+  #overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.72);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    font-size: 2rem;
+    font-weight: 800;
+    text-align: center;
+  }
+  #overlay .row { display: flex; gap: 10px; }
+  #overlay button { font-size: 1.1rem; }
+
+  @media (max-width: 1180px) {
+    #battle-main { grid-template-columns: 1fr; }
+    .team { order: 2; }
+    #centre { order: 1; }
+    .team .list { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+    .ucard { width: 220px; margin: 0; }
+  }
+</style>
+</head>
+<body>
+<main id="app">
+
+  <!-- ===================== PAGE 1: SHUFFLE ===================== -->
+  <section id="screen-shuffle">
+    <h1>ANIME ARENA</h1>
+    <p class="sub">Two players. Three fighters each. Last team standing wins.</p>
+
+    <div id="hands">
+      <div class="hand">
+        <h2 class="p1">Player 1</h2>
+        <div class="cards" id="cards-1"></div>
+        <button id="reroll-1" class="ghost">Reroll</button>
+      </div>
+      <div class="hand">
+        <h2 class="p2">Player 2</h2>
+        <div class="cards" id="cards-2"></div>
+        <button id="reroll-2" class="ghost">Reroll</button>
+      </div>
+    </div>
+
+    <div id="start-wrap"><button id="start" class="big">Start battle</button></div>
+
+    <details>
+      <summary>How to play</summary>
+      <ul>
+        <li><b>Turns:</b> Player 1, then Player 2, then the monsters. On your turn pick <b>one</b> of your three fighters, move it, then act with it.</li>
+        <li><b>Move:</b> up/down/left/right only, up to the fighter's MOV in steps. Forests cost 2 steps. Walls and water are blocked. Enemies and monsters block you; you can walk through teammates but not stop on them.</li>
+        <li><b>Actions:</b> Attack (free, +10 EP), Defend (halves the next hit, +20 EP), two Skills, and one Ultimate. Skills cost EP. All your fighters gain +5 EP at the start of your turn.</li>
+        <li><b>Damage:</b> power minus the target's DEF (minimum 1). Forest cuts damage taken by 25%.</li>
+        <li><b>Range:</b> counted in steps (up/down/left/right). Shots need a clear line: a wall or any fighter in between blocks it. Ultimates ignore blockers.</li>
+        <li><b>Terrain:</b> spikes hurt (10 HP) if you end your move on them.</li>
+        <li><b>Monsters:</b> neutral, they wake after round 1. Each one picks a random fighter it can reach (from either team) and attacks. Killing one drops a heal (❤️) or EP (⚡) pickup: stop on it to collect.</li>
+        <li><b>Win:</b> knock out all three enemy fighters.</li>
+      </ul>
+    </details>
+    <p class="note">Want real artwork? Put your own images in an <code>images/</code> folder next to this file, named goku.png, naruto.png, luffy.png, zoro.png, levi.png, itachi.png, gojo.png, light.png, tanjiro.png, saitama.png. They show up automatically.</p>
+  </section>
+
+  <!-- ===================== PAGE 2: BATTLE ===================== -->
+  <section id="screen-battle" hidden>
+    <div id="turnbar"></div>
+    <div id="battle-main">
+      <div class="team t1" id="team-1"><h4>Player 1</h4><div class="list"></div></div>
+      <div id="centre">
+        <div id="board"></div>
+        <div id="legend">🌲 forest (2 steps, −25% damage) · ▲ spikes (10 dmg) · ≈ water · ▦ wall · ❤️ heal · ⚡ EP</div>
+        <div id="actions"></div>
+        <div id="log"></div>
+      </div>
+      <div class="team t2" id="team-2"><h4>Player 2</h4><div class="list"></div></div>
+    </div>
+    <div style="text-align:center;margin-top:14px">
+      <button id="quit" class="ghost">Back to shuffle page</button>
+    </div>
+    <div id="overlay" hidden></div>
+  </section>
+
+</main>
+
+<script>
+'use strict';
+
+/* =====================================================================
+   BASIC HELPERS
+   ===================================================================== */
+const COLS = 11, ROWS = 8;
+const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+const STARTS = [[1, 1], [3, 0], [5, 1]];      // Player 1 start squares [row, col]; Player 2 is mirrored
+const MAX_LOG = 40;
+
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, window.__fast ? 0 : ms));
+const rand = n => Math.floor(Math.random() * n);
+const pick = arr => arr[rand(arr.length)];
+const inb = (r, c) => r >= 0 && r < ROWS && c >= 0 && c < COLS;
+const key = (r, c) => r * COLS + c;
+const dist = (r0, c0, r1, c1) => Math.abs(r0 - r1) + Math.abs(c0 - c1);
+function shuffle(a) {
+  a = a.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = rand(i + 1);
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/* =====================================================================
+   GAME DATA  (all numbers live here, so they are easy to tune)
+   skill fields: key, name, cost (EP), range (steps), dmg, plus optional:
+     self (no target), hits, ignoreDef, ult (ignores blockers),
+     fx: dodge, stun, debuff{mult,turns}, heal, shield, buff{mult,turns}
+   ===================================================================== */
+const sk = (key, name, cost, range, dmg, extra = {}) => ({ key, name, cost, range, dmg, ...extra });
+
+const CHARS = [
+  { id: 'goku', name: 'Goku', series: 'Dragon Ball', color: '#f59e0b',
+    hp: 130, ep: 100, atk: 18, def: 8, move: 4, range: 1, skills: [
+      sk('s1', 'Kamehameha', 25, 3, 32),
+      sk('s2', 'Instant Transmission', 20, 3, 15, { fx: { dodge: true } }),
+      sk('ult', 'Spirit Bomb', 80, 4, 85, { ult: true }) ] },
+
+  { id: 'naruto', name: 'Naruto Uzumaki', series: 'Naruto', color: '#f97316',
+    hp: 125, ep: 110, atk: 16, def: 7, move: 4, range: 1, skills: [
+      sk('s1', 'Shadow Clone Barrage', 20, 2, 30),
+      sk('s2', 'Rasengan', 30, 1, 38),
+      sk('ult', 'Nine-Tails Mode', 80, 2, 75, { ult: true, fx: { heal: 20 } }) ] },
+
+  { id: 'luffy', name: 'Monkey D. Luffy', series: 'One Piece', color: '#dc2626',
+    hp: 140, ep: 80, atk: 17, def: 8, move: 4, range: 1, skills: [
+      sk('s1', 'Gum-Gum Pistol', 15, 3, 28),
+      sk('s2', 'Gear Second', 25, 0, 0, { self: true, fx: { buff: { mult: 1.3, turns: 2 } } }),
+      sk('ult', 'Giant Pistol', 70, 3, 80, { ult: true }) ] },
+
+  { id: 'zoro', name: 'Roronoa Zoro', series: 'One Piece', color: '#16a34a',
+    hp: 120, ep: 90, atk: 20, def: 9, move: 4, range: 1, skills: [
+      sk('s1', 'Oni Giri', 20, 1, 34),
+      sk('s2', "Lion's Song", 30, 2, 40, { ignoreDef: true }),
+      sk('ult', 'Asura', 80, 2, 85, { ult: true }) ] },
+
+  { id: 'levi', name: 'Levi Ackerman', series: 'Attack on Titan', color: '#64748b',
+    hp: 105, ep: 90, atk: 19, def: 5, move: 5, range: 1, skills: [
+      sk('s1', 'Spin Slash', 20, 2, 30),
+      sk('s2', 'Blade Flurry', 30, 2, 16, { hits: 3 }),
+      sk('ult', 'Spinning Barrage', 75, 3, 80, { ult: true }) ] },
+
+  { id: 'itachi', name: 'Itachi Uchiha', series: 'Naruto', color: '#7c3aed',
+    hp: 100, ep: 120, atk: 15, def: 5, move: 4, range: 1, skills: [
+      sk('s1', 'Fireball Jutsu', 20, 3, 30),
+      sk('s2', 'Tsukuyomi', 30, 3, 10, { fx: { stun: 1 } }),
+      sk('ult', 'Susanoo', 90, 2, 75, { ult: true, fx: { shield: 25 } }) ] },
+
+  { id: 'gojo', name: 'Satoru Gojo', series: 'Jujutsu Kaisen', color: '#38bdf8',
+    hp: 110, ep: 130, atk: 15, def: 6, move: 4, range: 1, skills: [
+      sk('s1', 'Blue', 25, 3, 32),
+      sk('s2', 'Red', 30, 3, 38),
+      sk('ult', 'Hollow Purple', 100, 5, 95, { ult: true }) ] },
+
+  { id: 'light', name: 'Light Yagami', series: 'Death Note', color: '#a16207',
+    hp: 90, ep: 100, atk: 12, def: 4, move: 4, range: 2, skills: [
+      sk('s1', 'Mind Games', 20, 3, 0, { fx: { debuff: { mult: 0.75, turns: 2 } } }),
+      sk('s2', 'Trap', 25, 3, 30),
+      sk('ult', 'Write the Name', 80, 4, 70, { ult: true, ignoreDef: true }) ] },
+
+  { id: 'tanjiro', name: 'Tanjiro Kamado', series: 'Demon Slayer', color: '#0d9488',
+    hp: 120, ep: 95, atk: 17, def: 7, move: 4, range: 1, skills: [
+      sk('s1', 'Water Wheel', 20, 2, 30),
+      sk('s2', 'Hinokami Kagura', 30, 1, 38),
+      sk('ult', 'Thirteenth Form', 80, 2, 80, { ult: true }) ] },
+
+  { id: 'saitama', name: 'Saitama', series: 'One Punch Man', color: '#eab308',
+    hp: 180, ep: 60, atk: 25, def: 10, move: 3, range: 1, skills: [
+      sk('s1', 'Normal Punch', 15, 1, 35),
+      sk('s2', 'Consecutive Punches', 25, 1, 45),
+      sk('ult', 'Serious Punch', 60, 2, 110, { ult: true }) ] },
+];
+
+const MONSTERS = {
+  slime:  { name: 'Slime',           emoji: '🟢', hp: 40,  atk: 8,  def: 2,  move: 2, range: 1, verb: 'slams' },
+  golem:  { name: 'Stone Golem',     emoji: '🗿', hp: 90,  atk: 20, def: 12, move: 0, range: 1, verb: 'smashes' },
+  wolf:   { name: 'Dire Wolf',       emoji: '🐺', hp: 50,  atk: 15, def: 3,  move: 3, range: 1, verb: 'bites' },
+  dragon: { name: 'Guardian Dragon', emoji: '🐉', hp: 200, atk: 28, def: 8,  move: 0, range: 3, verb: 'breathes fire at' },
+};
+
+const RULES = {
+  basicEp: 10, defendEp: 20, regenEp: 5,
+  spikeDmg: 10, forestCut: 0.75, pickupHeal: 30, pickupEp: 30,
+};
+
+const TERRAIN_CLASS = { '.': 'plain', W: 'wall', A: 'water', F: 'forest', S: 'spikes' };
+const TERRAIN_GLYPH = { W: '▦', A: '≈', F: '🌲', S: '▲▲' };
+
+/* =====================================================================
+   PORTRAITS  (uses images/<id>.png if it exists, else a coloured initial)
+   ===================================================================== */
+const imgState = {};   // id -> 'ok' | 'bad'
+function portrait(def) {
+  const wrap = document.createElement('div');
+  wrap.className = 'portrait';
+  wrap.style.setProperty('--pc', def.color);
+  const url = 'images/' + def.id + '.png';
+  if (imgState[def.id] === 'ok') {
+    const img = new Image(); img.alt = ''; img.src = url;
+    wrap.appendChild(img);
+    return wrap;
+  }
+  wrap.textContent = def.name[0];
+  if (imgState[def.id] !== 'bad') {
+    const img = new Image();
+    img.alt = '';
+    img.onload = () => { imgState[def.id] = 'ok'; wrap.textContent = ''; wrap.appendChild(img); };
+    img.onerror = () => { imgState[def.id] = 'bad'; };
+    img.src = url;
+  }
+  return wrap;
+}
+
+/* =====================================================================
+   PAGE 1: SHUFFLE
+   ===================================================================== */
+let hands = { 1: [], 2: [] };
+let rerolls = { 1: 1, 2: 1 };
+
+function dealHands() {
+  const all = shuffle(CHARS);
+  hands = { 1: all.slice(0, 3), 2: all.slice(3, 6) };
+  rerolls = { 1: 1, 2: 1 };
+  renderShuffle();
+}
+
+function reroll(p) {
+  if (rerolls[p] <= 0) return;
+  const other = hands[3 - p];
+  const pool = CHARS.filter(c => !other.includes(c));
+  hands[p] = shuffle(pool).slice(0, 3);
+  rerolls[p]--;
+  renderShuffle();
+}
+
+function actText(a) {
+  const bits = [];
+  if (a.dmg) bits.push(a.hits > 1 ? `${a.hits}×${a.dmg} dmg` : `${a.dmg} dmg`);
+  bits.push(a.self ? 'self' : `range ${a.range}`);
+  if (a.cost) bits.push(`${a.cost} EP`);
+  return bits.join(' · ');
+}
+
+function fxNote(a) {
+  const n = [];
+  if (a.ignoreDef
